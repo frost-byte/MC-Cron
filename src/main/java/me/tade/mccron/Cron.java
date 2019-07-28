@@ -5,10 +5,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
+
+import java.util.*;
 
 import me.tade.mccron.commands.CronCommand;
 import me.tade.mccron.commands.TimerCommand;
@@ -17,6 +15,7 @@ import me.tade.mccron.job.EventJob;
 import me.tade.mccron.managers.EventManager;
 import me.tade.mccron.utils.EventType;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -24,18 +23,19 @@ import org.bukkit.scheduler.BukkitRunnable;
  *
  * @author The_TadeSK
  */
+@SuppressWarnings("WeakerAccess")
 public class Cron extends JavaPlugin {
 
     private HashMap<String, CronJob> jobs = new HashMap<>();
     private HashMap<EventType, List<EventJob>> eventJobs = new HashMap<>();
     private List<String> startUpCommands = new ArrayList<>();
-                                            
+    private Calendar cal;
     @Override
     public void onEnable(){
         log("Loading plugin...");
         log("Loading config...");
         getConfig().options().copyDefaults(true);
-        saveConfig();
+        saveDefaultConfig();
         
         log("Loading commands...");
         getCommand("timer").setExecutor(new TimerCommand(this));
@@ -57,6 +57,8 @@ public class Cron extends JavaPlugin {
             }
         });
 
+        cal = Calendar.getInstance();
+        log("The current calendar time is " + getCurrentTime());
         metrics.addCustomChart(new Metrics.SingleLineChart("running_event_jobs") {
             @Override
             public int getValue() {
@@ -77,7 +79,6 @@ public class Cron extends JavaPlugin {
         log("Everything loaded!");
 
         new BukkitRunnable(){
-            @Override
             public void run() {
                 log("Dispatching startup commands..");
                 for(String commands : getStartUpCommands()){
@@ -87,58 +88,110 @@ public class Cron extends JavaPlugin {
             }
         }.runTaskLater(this, 20);
     }
-    
+
+    public String getCurrentTime() {
+        if (cal != null)
+        {
+            String hour, minute, second = "";
+
+            hour = cal.get(Calendar.HOUR_OF_DAY) + "";
+            minute = cal.get(Calendar.MINUTE) + "";
+            second = cal.get(Calendar.SECOND) + "";
+
+            return hour + ":" + minute + ":" + second;
+        }
+
+        return "Unknown!";
+    }
+
     public void loadJobs(){
         log("Loading cron jobs....");
-        for(String s : getConfig().getConfigurationSection("jobs").getKeys(false)){
-            List<String> cmds = getConfig().getStringList("jobs." + s + ".commands");
-            String time = getConfig().getString("jobs." + s + ".time");
-            
-            jobs.put(s, new CronJob(this, cmds, time, s));
-            log("Created new job: " + s);
-        }
-        log("Total loaded jobs: " + jobs.size());
-        log("Starting cron jobs...");
-        for(CronJob j : new ArrayList<>(jobs.values())){
-            try{
-                log("Starting job: " + j.getName());
-                j.startJob();
-            }catch(IllegalArgumentException ex){
-                log("Can't start job " + j.getName() + "! " + ex.getMessage());
-            }
-        }
-        log("All jobs started!");
+        ConfigurationSection cronJobsSection = getConfig().getConfigurationSection("jobs");
 
-        for(String s : getConfig().getConfigurationSection("event-jobs").getKeys(false)){
-            EventType type = EventType.isEventJob(s);
-            if(type != null){
-                List<EventJob> jobs = new ArrayList<>();
-                for(String name : getConfig().getConfigurationSection("event-jobs." + s).getKeys(false)){
-                    int time = getConfig().getInt("event-jobs." + s + "." + name + ".time");
-                    List<String> cmds = getConfig().getStringList("event-jobs." + s + "." + name + ".commands");
-                    jobs.add(new EventJob(this, name, time, cmds, type));
-                    log("Created new event job: " + name + " (" + type.getConfigName() + ")");
+        if (cronJobsSection != null)
+        {
+            Set<String> keys = cronJobsSection.getKeys(false);
+
+            if (keys.isEmpty()) {
+                log("No Cron Jobs found!");
+            }
+            else
+            {
+                for(String s : keys)
+                {
+                    List<String> cmds = cronJobsSection.getStringList(s + ".commands");
+                    String time = getConfig().getString("jobs." + s + ".time");
+
+                    jobs.put(s, new CronJob(this, cmds, time, s));
+                    log("Created new job: " + s);
                 }
+                log("Total loaded cron jobs: " + jobs.size());
 
-                eventJobs.put(type, jobs);
+                log("Starting cron jobs...");
+                for(CronJob j : new ArrayList<>(jobs.values())){
+                    try{
+                        log("Starting job: " + j.getName());
+                        j.startJob();
+                    }catch(IllegalArgumentException ex){
+                        log("Can't start job " + j.getName() + "! " + ex.getMessage());
+                    }
+                }
+                log("All jobs started!");
             }
         }
-        log("All event jobs registered!");
+
+        ConfigurationSection eventJobsSection = getConfig().getConfigurationSection("event-jobs");
+
+        if (eventJobsSection != null)
+        {
+            Set<String> eventNames = eventJobsSection.getKeys(false);
+
+            if (eventNames.isEmpty())
+            {
+                log("No Event Jobs found!");
+            }
+            else
+            {
+                for (String eventName : eventNames)
+                {
+                    EventType type = EventType.isEventJob(eventName);
+                    if(type != null)
+                    {
+                        ConfigurationSection eventSection = eventJobsSection.getConfigurationSection(eventName);
+
+                        if (eventSection != null)
+                        {
+                            Set<String> jobNames = eventSection.getKeys(false);
+                            List<EventJob> jobs = new ArrayList<>();
+
+                            for(String jobName : jobNames)
+                            {
+                                int time = eventSection.getInt(jobName + ".time");
+                                List<String> cmds = eventSection.getStringList(jobName + ".commands");
+                                jobs.add(new EventJob(this, jobName, time, cmds, type));
+                                log("Created new event job: " + jobName + " (" + type.getConfigName() + ")");
+                            }
+
+                            eventJobs.put(type, jobs);
+                        }
+                    }
+                }
+                log("All Event Jobs registered!");
+            }
+        }
 
         List<String> cmds = getConfig().getStringList("startup.commands");
-        if(cmds != null) {
+        if(!cmds.isEmpty()) {
             for (String command : cmds) {
                 startUpCommands.add(command);
                 log("Created new startup command: " + command);
             }
         }
-        log("All startup commands registered!");
+        log("All Startup Commands registered!");
     }
 
     @Override
     public void onDisable(){
-        reloadConfig();
-        saveConfig();
     }
     
     public void log(String info){

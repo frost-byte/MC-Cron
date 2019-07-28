@@ -1,19 +1,18 @@
 package me.tade.mccron.bungee;
 
-import me.tade.mccron.Metrics;
+
 import me.tade.mccron.bungee.commands.BungeeCronCommand;
 import me.tade.mccron.bungee.commands.BungeeTimerCommand;
 import me.tade.mccron.bungee.job.BungeeCronJob;
 import me.tade.mccron.bungee.job.BungeeEventJob;
 import me.tade.mccron.bungee.managers.EventManager;
 import me.tade.mccron.utils.EventType;
-import net.md_5.bungee.BungeeCord;
+import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import org.bukkit.Bukkit;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -101,15 +100,12 @@ public class BungeeCron extends Plugin {
         }));
         log("Everything loaded!");
 
-        BungeeCord.getInstance().getScheduler().schedule(this, new Runnable() {
-            @Override
-            public void run() {
-                log("Dispatching startup commands..");
-                for(String commands : getStartUpCommands()){
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), commands);
-                }
-                log("Commands dispatched!");
+        ProxyServer.getInstance().getScheduler().schedule(this, () -> {
+            log("Dispatching startup commands..");
+            for(String commands : getStartUpCommands()){
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), commands);
             }
+            log("Commands dispatched!");
         }, 2, TimeUnit.SECONDS);
     }
 

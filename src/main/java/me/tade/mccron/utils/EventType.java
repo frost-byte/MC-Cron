@@ -3,6 +3,7 @@ package me.tade.mccron.utils;
 public enum EventType {
 
     JOIN_EVENT("join-event"),
+    FIRST_JOIN_EVENT("first-join-event"),
     QUIT_EVENT("quit-event");
 
     private String configName;

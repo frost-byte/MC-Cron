@@ -11,6 +11,10 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.server.ServerEvent;
 
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+
 public class EventManager implements Listener {
 
     private Cron cron;
@@ -25,11 +29,26 @@ public class EventManager implements Listener {
     public void onJoinEvent(PlayerJoinEvent event){
         Player player = event.getPlayer();
 
-        if(!cron.getEventJobs().containsKey(EventType.JOIN_EVENT))
+        HashMap<EventType, List<EventJob>> eventJobs = cron.getEventJobs();
+
+        if (eventJobs.isEmpty())
             return;
 
-        for(EventJob job : cron.getEventJobs().get(EventType.JOIN_EVENT))
-            job.performJob(player);
+        Date now = new Date();
+        // Number of seconds since the player first joined.
+        long diff = (now.getTime() - player.getFirstPlayed()) / 1000;
+
+        if (diff < 120 && eventJobs.containsKey(EventType.FIRST_JOIN_EVENT)) {
+            for (EventJob job : eventJobs.get(EventType.FIRST_JOIN_EVENT)) {
+                job.performJob(player);
+            }
+        }
+
+        if(eventJobs.containsKey(EventType.JOIN_EVENT)) {
+            for(EventJob job : eventJobs.get(EventType.JOIN_EVENT)) {
+                job.performJob(player);
+            }
+        }
     }
 
     @EventHandler
