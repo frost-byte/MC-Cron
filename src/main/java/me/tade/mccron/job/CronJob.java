@@ -1,32 +1,33 @@
-package me.tade.mccron.bungee.job;
-
-import me.tade.mccron.Cron;
-import me.tade.mccron.bungee.BungeeCron;
-import net.md_5.bungee.api.scheduler.ScheduledTask;
-import net.md_5.bungee.scheduler.BungeeTask;
+package me.tade.mccron.job;
 
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+
+import me.tade.mccron.Cron;
+import org.bukkit.Bukkit;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 /**
  *
  * @author The_TadeSK
  */
-public class BungeeCronJob {
+@SuppressWarnings("WeakerAccess")
+public class CronJob {
 
-    private BungeeCron cron;
+    private Cron cron;
     private List<String> cmds;
     private String time, name;
     private Calendar cal;
     private int t = 0;
     private int calDayMonth = 0;
-    private int calDayWeek = 0;
+    private int calDayWeek = Calendar.SUNDAY;
+    private boolean useDayWeek = false;
     private String clockTime = "";
-    private ScheduledTask task;
+    private BukkitTask task;
     
-    public BungeeCronJob(BungeeCron cron, List<String> cmds, String time, String name){
+    public CronJob(Cron cron, List<String> cmds, String time, String name){
         this.cron = cron;
         this.cmds = cmds;
         this.time = time;
@@ -35,25 +36,25 @@ public class BungeeCronJob {
     
     public void startJob() throws IllegalArgumentException {
         getTimer();
-        task = cron.getProxy().getScheduler().schedule(cron, new Runnable() {
+        task = new BukkitRunnable(){
             @Override
-            public void run() {
+            public void run(){
                 t--;
                 if(cal != null){
                     if(t <= 0){
                         getTimer();
-                        if(clockTime != "" && !isTime()){
+                        if(!clockTime.isEmpty() && !isTime()){
                             return;
                         }
                         if(calDayMonth != 0 && cal.get(Calendar.DAY_OF_MONTH) == calDayMonth){
                             runCommands();
-                        }else if(calDayWeek != 0 && cal.get(Calendar.DAY_OF_WEEK) == calDayWeek){
+                        }else if(useDayWeek && cal.get(Calendar.DAY_OF_WEEK) == calDayWeek){
                             runCommands();
                         }
                     }
                     return;
                 }
-                if(clockTime != "" && !isTime()){
+                if(!clockTime.isEmpty() && !isTime()){
                     return;
                 }
                 if(t <= 0){
@@ -61,7 +62,7 @@ public class BungeeCronJob {
                     getTimer();
                 }
             }
-        }, 0, 1, TimeUnit.SECONDS);
+        }.runTaskTimer(cron, 0, 20);
     }
     
     public void stopJob(){
@@ -70,49 +71,85 @@ public class BungeeCronJob {
     
     private void getTimer() throws IllegalArgumentException {
         String[] args = time.split(" ");
-        if(args.length >= 5){
-            if(args.length == 7){
-                if(args[5].contains("at")){
+        if(args.length >= 5)
+        {
+            if(args.length == 7)
+            {
+                if(args[5].contains("at"))
+                {
                     clockTime = args[6];
                 }
             }
             cal = Calendar.getInstance();
-            if(args[2].contains("day") && args[4].contains("month")){
+
+            if(args[2].contains("day") && args[4].contains("month"))
+            {
                 calDayMonth = Integer.parseInt(args[1]);
-                t = clockTime == "" ? ((20 * 60) * 60 ) : 61;
-            }else if(args[2].contains("day") && args[4].contains("week")){
+                // Tick Countdown set to 1 hour
+                t = (!clockTime.isEmpty()) ? ((20 * 60) * 60 ) : 61;
+            }
+            else if(args[2].contains("day") && args[4].contains("week"))
+            {
+                useDayWeek = true;
                 calDayWeek = Integer.parseInt(args[1]) + 1;
-                t = clockTime == "" ? ((20 * 60) * 60 ) : 61;
-            }else{
+                // Tick Countdown set to 1 hour
+                t = (!clockTime.isEmpty()) ? ((20 * 60) * 60 ) : 61;
+            }
+            else
+            {
                 throw new IllegalArgumentException("Invalid Time format: '" + time + "'");
             }
-        }else if(args.length == 3){
-            if(args[2].contains("second")){
+        }
+        else if(args.length == 3)
+        {
+            // every x {time_unit}
+            if(args[2].contains("second"))
+            {
                 t = Integer.parseInt(args[1]);
-            }else if(args[2].contains("minute")){
+            }
+            else if(args[2].contains("minute"))
+            {
                 t = Integer.parseInt(args[1]) * 60;
-            }else if(args[2].contains("hour")){
+            }
+            else if(args[2].contains("hour"))
+            {
                 t = (Integer.parseInt(args[1]) * 60) * 60;
-            }else if(args[2].contains("day") || args[2].contains("dayS")){
+            }
+            else if(args[2].contains("day"))
+            {
                 t = ((Integer.parseInt(args[1]) * 60) * 60) * 24;
-            }else{
+            }
+            else
+            {
                 throw new IllegalArgumentException("Invalid Time format: '" + time + "'");
             }
-        }else if(args.length == 2){
-            if(args[0].contains("at")){
+        }
+        else if(args.length == 2)
+        {
+            if(args[0].contains("at"))
+            {
                 clockTime = args[1];
                 t = 61;
                 return;
             }
-            if(args[1].contains("second")){
+            if(args[1].contains("second"))
+            {
                 t = 1;
-            }else if(args[1].contains("minute")){
+            }
+            else if(args[1].contains("minute"))
+            {
                 t = 60;
-            }else if(args[1].contains("hour")){
+            }
+            else if(args[1].contains("hour"))
+            {
                 t = 60 * 60;
-            }else if(args[1].contains("day") || args[1].contains("dayS")){
+            }
+            else if(args[1].contains("day") || args[1].contains("dayS"))
+            {
                 t = (60 * 60) * 24;
-            }else{
+            }
+            else
+            {
                 throw new IllegalArgumentException("Invalid Time format: '" + time + "'");
             }
         }else{
@@ -122,28 +159,12 @@ public class BungeeCronJob {
     
     public void runCommands(){
         for(String s : new ArrayList<>(cmds)){
-            cron.getProxy().getPluginManager().dispatchCommand(cron.getProxy().getConsole(), s);
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), s);
         }
     }
     
     public boolean isTime(){
-        String[] args = clockTime.split(":");
-        Calendar c = Calendar.getInstance();
-        String hour, minute = "";
-        
-        hour = c.get(Calendar.HOUR_OF_DAY) + "";
-        minute = c.get(Calendar.MINUTE) + "";
-        
-        String cHour = args[0];
-        String cMinute = args[1];
-        
-        if(args[0].startsWith("0") && args[0].length() == 2){
-            cHour = args[0].substring(1);
-        }
-        if(args[1].startsWith("0") && args[1].length() == 2){
-            cMinute = args[1].substring(1);
-        }
-        return cMinute.equalsIgnoreCase(minute) && cHour.equalsIgnoreCase(hour);
+        return clockTime.equalsIgnoreCase(cron.getCurrentTime(false));
     }
 
     public String getName() {

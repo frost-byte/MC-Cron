@@ -1,9 +1,8 @@
 package me.tade.mccron.bungee.job;
 
-import me.tade.mccron.Cron;
 import me.tade.mccron.bungee.BungeeCron;
 import me.tade.mccron.utils.EventType;
-import net.md_5.bungee.BungeeCord;
+import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.List;
@@ -26,17 +25,20 @@ public class BungeeEventJob {
     }
 
     public void performJob(ProxiedPlayer player){
-        BungeeCord.getInstance().getScheduler().schedule(cron, new Runnable() {
-            @Override
-            public void run() {
-                if(eventType == EventType.JOIN_EVENT && !player.isConnected())
-                    return;
+        ProxyServer proxy = ProxyServer.getInstance();
+        proxy.getScheduler().schedule(cron, () -> {
+            if(
+                (
+                    eventType == EventType.JOIN_EVENT ||
+                    eventType == EventType.FIRST_JOIN_EVENT
+                ) && !player.isConnected()
+            )
+                return;
 
-                for(String command : commands){
-                    command = command.replace("{player}", player.getName());
+            for(String command : commands){
+                command = command.replace("{player}", player.getName());
 
-                    BungeeCord.getInstance().getPluginManager().dispatchCommand(BungeeCord.getInstance().getConsole(), command);
-                }
+                proxy.getPluginManager().dispatchCommand(proxy.getConsole(), command);
             }
         }, time, TimeUnit.SECONDS);
     }
@@ -45,6 +47,7 @@ public class BungeeEventJob {
         return name;
     }
 
+    @SuppressWarnings("unused")
     public EventType getEventType() {
         return eventType;
     }

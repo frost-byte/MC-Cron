@@ -28,7 +28,7 @@ public class EventJob {
         new BukkitRunnable(){
             @Override
             public void run() {
-                if(eventType == EventType.JOIN_EVENT && !player.isOnline())
+                if((eventType == EventType.JOIN_EVENT || eventType == EventType.FIRST_JOIN_EVENT)  && !player.isOnline())
                     return;
 
                 for(String command : commands){

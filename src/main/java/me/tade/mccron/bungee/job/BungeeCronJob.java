@@ -1,21 +1,21 @@
-package me.tade.mccron.job;
+package me.tade.mccron.bungee.job;
+
+import me.tade.mccron.bungee.BungeeCron;
+import net.md_5.bungee.api.scheduler.ScheduledTask;
 
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
-
-import me.tade.mccron.Cron;
-import org.bukkit.Bukkit;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
+import java.util.concurrent.TimeUnit;
 
 /**
  *
  * @author The_TadeSK
  */
-public class CronJob {
+@SuppressWarnings("WeakerAccess")
+public class BungeeCronJob {
 
-    private Cron cron;
+    private BungeeCron cron;
     private List<String> cmds;
     private String time, name;
     private Calendar cal;
@@ -23,9 +23,9 @@ public class CronJob {
     private int calDayMonth = 0;
     private int calDayWeek = 0;
     private String clockTime = "";
-    private BukkitTask task;
+    private ScheduledTask task;
     
-    public CronJob(Cron cron, List<String> cmds, String time, String name){
+    public BungeeCronJob(BungeeCron cron, List<String> cmds, String time, String name){
         this.cron = cron;
         this.cmds = cmds;
         this.time = time;
@@ -34,33 +34,36 @@ public class CronJob {
     
     public void startJob() throws IllegalArgumentException {
         getTimer();
-        task = new BukkitRunnable(){
-            @Override
-            public void run(){
-                t--;
-                if(cal != null){
-                    if(t <= 0){
-                        getTimer();
-                        if(clockTime != "" && !isTime()){
-                            return;
+        task = cron.getProxy().getScheduler().schedule(
+            cron,
+            new Runnable() {
+                public void run() {
+                    t--;
+                    if(cal != null){
+                        if(t <= 0){
+                            getTimer();
+                            if(clockTime != "" && !isTime()){
+                                return;
+                            }
+                            if(calDayMonth != 0 && cal.get(Calendar.DAY_OF_MONTH) == calDayMonth){
+                                runCommands();
+                            }else if(calDayWeek != 0 && cal.get(Calendar.DAY_OF_WEEK) == calDayWeek){
+                                runCommands();
+                            }
                         }
-                        if(calDayMonth != 0 && cal.get(Calendar.DAY_OF_MONTH) == calDayMonth){
-                            runCommands();
-                        }else if(calDayWeek != 0 && cal.get(Calendar.DAY_OF_WEEK) == calDayWeek){
-                            runCommands();
-                        }
+                        return;
                     }
-                    return;
+                    if(clockTime != "" && !isTime()){
+                        return;
+                    }
+                    if(t <= 0){
+                        runCommands();
+                        getTimer();
+                    }
                 }
-                if(clockTime != "" && !isTime()){
-                    return;
-                }
-                if(t <= 0){
-                    runCommands();
-                    getTimer();
-                }
-            }
-        }.runTaskTimer(cron, 0, 20);
+             },
+            0, 1, TimeUnit.SECONDS
+        );
     }
     
     public void stopJob(){
@@ -121,7 +124,7 @@ public class CronJob {
     
     public void runCommands(){
         for(String s : new ArrayList<>(cmds)){
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), s);
+            cron.getProxy().getPluginManager().dispatchCommand(cron.getProxy().getConsole(), s);
         }
     }
     
