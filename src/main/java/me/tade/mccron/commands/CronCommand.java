@@ -37,8 +37,6 @@ public class CronCommand implements CommandExecutor {
                 cron.getJobs().clear();
 
                 cron.reloadConfig();
-                cron.saveConfig();
-
                 cron.loadJobs();
                 sender.sendMessage("§aJobs reloaded!");
             }else if(args[0].equalsIgnoreCase("list")){

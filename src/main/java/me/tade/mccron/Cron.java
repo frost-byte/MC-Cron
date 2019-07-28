@@ -58,7 +58,7 @@ public class Cron extends JavaPlugin {
         });
 
         cal = Calendar.getInstance();
-        log("The current calendar time is " + getCurrentTime());
+        log("The current calendar time is " + getCurrentTime(true));
         metrics.addCustomChart(new Metrics.SingleLineChart("running_event_jobs") {
             @Override
             public int getValue() {
@@ -89,16 +89,32 @@ public class Cron extends JavaPlugin {
         }.runTaskLater(this, 20);
     }
 
-    public String getCurrentTime() {
+    public String getCurrentTime(boolean includeSeconds) {
+        cal = Calendar.getInstance();
         if (cal != null)
         {
-            String hour, minute, second = "";
+            String hour, minute;
 
             hour = cal.get(Calendar.HOUR_OF_DAY) + "";
             minute = cal.get(Calendar.MINUTE) + "";
-            second = cal.get(Calendar.SECOND) + "";
 
-            return hour + ":" + minute + ":" + second;
+            if (hour.length() == 1)
+                hour = "0" + hour;
+
+            if (minute.length() == 1)
+                minute = "0" + minute;
+
+            if (includeSeconds)
+            {
+                String second = cal.get(Calendar.SECOND) + "";
+
+                if (second.length() == 1)
+                    second = "0" + second;
+
+                return hour + ":" + minute + ":" + second;
+            }
+            else
+                return hour + ":" + minute;
         }
 
         return "Unknown!";
@@ -199,6 +215,7 @@ public class Cron extends JavaPlugin {
         logCustom(info);
     }
     
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     private void logCustom(String info){
         try {
             File dataFolder = getDataFolder();
